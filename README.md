@@ -7,7 +7,7 @@ profile. Each plugin's code, releases and issues live in its own repository.
 | Plugin | Repository | Support |
 | --- | --- | --- |
 | Docker Batch Update | [unraid-docker-batch-update](https://github.com/tabilzad/unraid-docker-batch-update) | [Forum thread](https://forums.unraid.net/topic/200997-plugin-docker-batch-update-update-only-the-containers-you-pick-in-one-go/) |
-| Claude Code for Unraid | [claude-code-unraid](https://github.com/tabilzad/claude-code-unraid) | [GitHub issues](https://github.com/tabilzad/claude-code-unraid/issues) |
+| Claude Code for Unraid | [claude-code-unraid](https://github.com/tabilzad/claude-code-unraid) | [Forum thread](https://forums.unraid.net/topic/201128-plugin-claude-code-for-unraid-claude-code-cli-on-the-host-with-sessions-that-survive-reboots-beta/) |
 
 To install one, search for it in the **Apps** tab of your Unraid server.
 
