@@ -4,10 +4,10 @@ This repository is the [Community Applications](https://ca.unraid.net) feed for 
 plugins. It holds the listing metadata only: one XML wrapper per plugin and the repository
 profile. Each plugin's code, releases and issues live in its own repository.
 
-| Plugin | Repository | Support |
-| --- | --- | --- |
-| Docker Batch Update | [unraid-docker-batch-update](https://github.com/tabilzad/unraid-docker-batch-update) | [Forum thread](https://forums.unraid.net/topic/200997-plugin-docker-batch-update-update-only-the-containers-you-pick-in-one-go/) |
-| Claude Code for Unraid | [claude-code-unraid](https://github.com/tabilzad/claude-code-unraid) | [Forum thread](https://forums.unraid.net/topic/201128-plugin-claude-code-for-unraid-claude-code-cli-on-the-host-with-sessions-that-survive-reboots-beta/) |
+| Plugin | Repository | Support | Listed from |
+| --- | --- | --- | --- |
+| Claude Code for Unraid | [claude-code-unraid](https://github.com/tabilzad/claude-code-unraid) | [Forum thread](https://forums.unraid.net/topic/201128-plugin-claude-code-for-unraid-claude-code-cli-on-the-host-with-sessions-that-survive-reboots-beta/) | this repository |
+| Docker Batch Update | [unraid-docker-batch-update](https://github.com/tabilzad/unraid-docker-batch-update) | [Forum thread](https://forums.unraid.net/topic/200997-plugin-docker-batch-update-update-only-the-containers-you-pick-in-one-go/) | its own repository, until the registration moves (see below) |
 
 To install one, search for it in the **Apps** tab of your Unraid server.
 
@@ -39,6 +39,9 @@ To install one, search for it in the **Apps** tab of your Unraid server.
 ## Registration
 
 Community Applications keeps one feed repository per account. This repository takes over
-from `unraid-docker-batch-update`, which was registered first and still carries copies of
-its own profile and wrapper. Until the registration is moved to this repository, the old
-one keeps serving the Docker Batch Update listing; afterwards those copies can go.
+from `unraid-docker-batch-update`, which was registered first and still carries its own
+profile and wrapper. Community Applications refuses a submission that repeats a
+`PluginURL` it already lists, so the Docker Batch Update wrapper stays out of this
+repository until the registration has been moved here; the old repository keeps serving
+that listing meanwhile. Once the move is done, copy `plugins/docker.batch.update.xml` from
+the old repository into `plugins/` here, run Scan, and remove the profile and wrapper there.
