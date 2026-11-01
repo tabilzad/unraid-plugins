@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Community Applications repository profile (https://ca.unraid.net/submit/help/repository-info-xml).
+  CA requires this file at the repository root with a non-empty Profile. Add a
+  Forum element once a thread for the repository as a whole exists; each plugin
+  wrapper carries its own Support link.
+-->
+<CommunityApplications>
+  <Profile>Unraid plugins by tabilzad, MIT licensed and maintained on GitHub. This repository is the Community Applications feed: it holds the listing metadata only, and each plugin's code, releases and issues live in its own repository. Plugins: Docker Batch Update, which adds a Batch Update tab to the Docker page for updating the containers you pick in one go, and Claude Code for Unraid, which installs Anthropic's Claude Code command-line agent natively on the host with a persistent login, restorable sessions and an enforced safety policy (a community project, not affiliated with Anthropic or Lime Technology). Support: the forum thread or the GitHub issues linked from each plugin.</Profile>
+  <Icon>https://raw.githubusercontent.com/tabilzad/unraid-plugins/main/icon.png</Icon>
+  <WebPage>https://github.com/tabilzad/unraid-plugins</WebPage>
+</CommunityApplications>

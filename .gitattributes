@@ -1,0 +1,3 @@
+# Everything is LF; the validate script runs on Linux.
+* text=auto eol=lf
+*.png binary

@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# validate: check the Community Applications feed before Community Applications
+# does. Needs xmllint (libxml2) and curl.
+#
+#   scripts/validate [--offline]
+#
+# Checks ca_profile.xml (well formed, non-empty Profile, Icon reachable), the
+# LICENSE file, and every plugins/*.xml: well formed, the required fields
+# present, PluginURL an https URL that is reachable and byte-for-byte the
+# pluginURL attribute of the plg it points at, Icon and Screenshot reachable
+# and the Icon a PNG. --offline skips the network checks. Exit 1 on findings.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+offline=0
+[ "${1:-}" = --offline ] && offline=1
+
+fail=0
+err() {
+  printf 'validate: %s\n' "$*" >&2
+  fail=1
+}
+xp() { # FILE XPATH
+  xmllint --noent --xpath "$2" "$1" 2>/dev/null || true
+}
+fetch() { # URL OUT
+  curl -fsSL --proto '=https' --tlsv1.2 --max-time 60 -o "$2" "$1"
+}
+is_png() { # FILE
+  [ "$(head -c 8 -- "$1" | od -An -tx1 | tr -d ' \n')" = "89504e470d0a1a0a" ]
+}
+
+for tool in xmllint curl; do
+  command -v "$tool" >/dev/null || {
+    printf 'validate: %s is required\n' "$tool" >&2
+    exit 2
+  }
+done
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+[ -f LICENSE ] || err "LICENSE is missing (Community Applications requires an OSI-approved licence at the root)"
+
+if xmllint --noout ca_profile.xml 2>/dev/null; then
+  [ -n "$(xp ca_profile.xml 'normalize-space(/CommunityApplications/Profile)')" ] || err "ca_profile.xml: Profile is empty"
+  profile_icon=$(xp ca_profile.xml 'normalize-space(/CommunityApplications/Icon)')
+  if [ -n "$profile_icon" ] && [ "$offline" = 0 ]; then
+    if fetch "$profile_icon" "$tmp/profile-icon"; then
+      is_png "$tmp/profile-icon" || err "ca_profile.xml: Icon is not a PNG: $profile_icon"
+    else
+      err "ca_profile.xml: Icon is not reachable: $profile_icon"
+    fi
+  fi
+else
+  err "ca_profile.xml is missing or not well formed"
+fi
+
+shopt -s nullglob
+wrappers=(plugins/*.xml)
+[ "${#wrappers[@]}" -gt 0 ] || err "no wrappers under plugins/"
+
+for w in "${wrappers[@]}"; do
+  if ! xmllint --noout "$w" 2>/dev/null; then
+    err "$w is not well formed"
+    continue
+  fi
+  [ -n "$(xp "$w" 'name(/*)')" ] && [ "$(xp "$w" 'name(/*)')" = Plugin ] || err "$w: the root element must be <Plugin>"
+  for el in Name PluginURL PluginAuthor Overview Category Icon License; do
+    [ -n "$(xp "$w" "normalize-space(/Plugin/$el)")" ] || err "$w: <$el> is missing or empty"
+  done
+  url=$(xp "$w" 'normalize-space(/Plugin/PluginURL)')
+  icon=$(xp "$w" 'normalize-space(/Plugin/Icon)')
+  shot=$(xp "$w" 'normalize-space(/Plugin/Screenshot)')
+  case "$url" in
+    https://*) ;;
+    *) err "$w: PluginURL must be an https URL: '$url'" ;;
+  esac
+  case "$icon" in
+    https://*) ;;
+    *) err "$w: Icon must be an https URL: '$icon'" ;;
+  esac
+  [ "$offline" = 1 ] && continue
+
+  if fetch "$url" "$tmp/plg"; then
+    if xmllint --noout --noent "$tmp/plg" 2>/dev/null; then
+      plg_url=$(xp "$tmp/plg" 'string(/PLUGIN/@pluginURL)')
+      [ "$plg_url" = "$url" ] || err "$w: PluginURL '$url' differs from the plg's pluginURL '$plg_url'"
+      plg_name=$(xp "$tmp/plg" 'string(/PLUGIN/@name)')
+      [ -n "$plg_name" ] || err "$w: the plg at $url has no name attribute"
+    else
+      err "$w: the file at $url is not a well-formed plg"
+    fi
+  else
+    err "$w: PluginURL is not reachable: $url"
+  fi
+  if fetch "$icon" "$tmp/icon"; then
+    is_png "$tmp/icon" || err "$w: Icon is not a PNG: $icon"
+  else
+    err "$w: Icon is not reachable: $icon"
+  fi
+  if [ -n "$shot" ] && ! fetch "$shot" "$tmp/shot"; then
+    err "$w: Screenshot is not reachable: $shot"
+  fi
+done
+
+if [ "$fail" = 0 ]; then
+  printf 'validate: ok (%d wrapper(s)%s)\n' "${#wrappers[@]}" "$([ "$offline" = 1 ] && printf ', offline')"
+fi
+exit "$fail"

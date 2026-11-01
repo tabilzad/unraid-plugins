@@ -1,0 +1,35 @@
+name: Validate
+
+# The checks Community Applications would fail on, run on every push and pull
+# request, and once a week so that a plg or icon that goes missing is noticed.
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: wrappers, profile, URLs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install xmllint
+        run: |
+          set -euo pipefail
+          if ! command -v xmllint >/dev/null; then
+            sudo apt-get update -q
+            sudo apt-get install -y -q --no-install-recommends libxml2-utils
+          fi
+          xmllint --version
+
+      - name: Validate
+        run: ./scripts/validate
