@@ -7,6 +7,7 @@ profile. Each plugin's code, releases and issues live in its own repository.
 | Plugin | Repository | Support | Listed from |
 | --- | --- | --- | --- |
 | Claude Code for Unraid | [claude-code-unraid](https://github.com/tabilzad/claude-code-unraid) | [Forum thread](https://forums.unraid.net/topic/201128-plugin-claude-code-for-unraid-claude-code-cli-on-the-host-with-sessions-that-survive-reboots-beta/) | this repository |
+| GPU Unlock | [gpu-unlock-unraid](https://github.com/tabilzad/gpu-unlock-unraid) | [GitHub issues](https://github.com/tabilzad/gpu-unlock-unraid/issues) (a forum thread will follow) | this repository |
 | Docker Batch Update | [unraid-docker-batch-update](https://github.com/tabilzad/unraid-docker-batch-update) | [Forum thread](https://forums.unraid.net/topic/200997-plugin-docker-batch-update-update-only-the-containers-you-pick-in-one-go/) | its own repository, until the registration moves (see below) |
 
 To install one, search for it in the **Apps** tab of your Unraid server.
@@ -26,7 +27,8 @@ To install one, search for it in the **Apps** tab of your Unraid server.
 1. Release the plugin from its own repository so that the `.plg` is reachable at a stable
    https URL (a GitHub release asset, or a raw file on the default branch).
 2. Copy the wrapper the plugin's repository maintains (`ca/<name>.xml` in
-   `claude-code-unraid`, `plugins/<name>.xml` in `unraid-docker-batch-update`) to
+   `claude-code-unraid` and `gpu-unlock-unraid`, `plugins/<name>.xml` in
+   `unraid-docker-batch-update`) to
    `plugins/<name>.xml` here, unchanged. The plugin repository is the source; this
    repository mirrors it.
 3. Add the plugin to the table above and mention it in `ca_profile.xml`.
