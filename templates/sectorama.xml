@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Community Applications template for Sectorama (https://github.com/tabilzad/sectorama).
+  This file is the source: TemplateURL is its own raw URL in this repository.
+  The image keeps its SQLite database at SQLITE_PATH, which defaults to a path
+  inside the container, so the template sets it to /data. Sectorama also needs
+  an InfluxDB 2.x server, which this template does not install (see Requires).
+  Unraid passes TZ to every container, so there is no TZ entry here.
+-->
+<Container version="2">
+  <Name>Sectorama</Name>
+  <Repository>tabilzad/sectorama:latest</Repository>
+  <Registry>https://hub.docker.com/r/tabilzad/sectorama</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>true</Privileged>
+  <Support>https://github.com/tabilzad/sectorama/issues</Support>
+  <Project>https://github.com/tabilzad/sectorama</Project>
+  <ReadMe>https://github.com/tabilzad/sectorama#readme</ReadMe>
+  <Overview>
+    Disk benchmark and health monitor with a web dashboard. Sectorama finds the drives in your server, benchmarks them with fio, polls their SMART attributes on a schedule and charts both over time.
+
+    A benchmark measures the sequential read speed at evenly spaced positions across the drive (the curve from the outer to the inner tracks) and runs four fio profiles: sequential 1 MiB and random 4 KiB reads, each at queue depth 1 and 32, with latency percentiles. All benchmark I/O is read-only, and only one benchmark runs at a time. Benchmarks can be started by hand or on a cron schedule.
+
+    SMART polls skip drives in standby by default, so monitoring does not spin a disk up; a benchmark has to read from the drive and does. Alerts for SMART failures, growing error counters, temperature, missing drives and finished benchmarks go to a webhook or to Slack.
+
+    The container runs privileged: smartctl and fio need raw access to the block devices. Do not expose the web port to the internet; the interface has no login.
+
+    Not affiliated with Lime Technology.
+  </Overview>
+  <Category>Tools:Utilities Tools:System</Category>
+  <WebUI>http://[IP]:[PORT:8888]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/tabilzad/unraid-plugins/main/templates/sectorama.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/tabilzad/sectorama/master/packages/frontend/public/pwa-512x512.png</Icon>
+  <Screenshot>https://raw.githubusercontent.com/tabilzad/sectorama/master/imgs/img.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/tabilzad/sectorama/master/imgs/img_1.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/tabilzad/sectorama/master/imgs/img_2.png</Screenshot>
+  <License>GPL-3.0-only</License>
+  <Beta>true</Beta>
+  <Requires>An InfluxDB 2.x server, which stores the benchmark results and the SMART history. InfluxDB 3 does not work: Sectorama queries with Flux. If you have none, install Influxdb from Apps with Repository set to influxdb:2, open http://SERVER-IP:8086 and complete its setup with the organization and the bucket both named sectorama. Copy the API token shown at the end of the setup into this template.</Requires>
+  <ExtraSearchTerms>disk drive benchmark speed fio smart smartctl health hdd ssd nvme temperature diskspeed</ExtraSearchTerms>
+  <Config Name="Web UI port" Target="8888" Default="8888" Mode="tcp" Description="Host port of the dashboard. Change it if 8888 is taken." Type="Port" Display="always" Required="true" Mask="false">8888</Config>
+  <Config Name="InfluxDB URL" Target="INFLUXDB_URL" Default="" Mode="" Description="Address of your InfluxDB 2.x server as the container reaches it, for example http://192.168.1.10:8086. Use the server's IP address, not localhost." Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="InfluxDB token" Target="INFLUXDB_TOKEN" Default="" Mode="" Description="An InfluxDB API token that may read, write and delete in the bucket below. The token shown at the end of the InfluxDB setup works." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="InfluxDB organization" Target="INFLUXDB_ORG" Default="sectorama" Mode="" Description="The InfluxDB organization that owns the bucket." Type="Variable" Display="always" Required="true" Mask="false">sectorama</Config>
+  <Config Name="InfluxDB bucket" Target="INFLUXDB_BUCKET" Default="sectorama" Mode="" Description="The InfluxDB bucket Sectorama writes to. It must exist; Sectorama does not create it." Type="Variable" Display="always" Required="true" Mask="false">sectorama</Config>
+  <Config Name="App data" Target="/data" Default="/mnt/user/appdata/sectorama" Mode="rw" Description="Holds the SQLite database: drive registry, schedules, alerts and settings." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/sectorama</Config>
+  <Config Name="Array status" Target="/var/local/emhttp" Default="/var/local/emhttp" Mode="ro" Description="Unraid's array status, read-only. The dashboard takes the used and free space of each disk from it. Remove it to show capacity only." Type="Path" Display="advanced" Required="false" Mask="false">/var/local/emhttp</Config>
+  <Config Name="Database file" Target="SQLITE_PATH" Default="/data/sectorama.db" Mode="" Description="Where the SQLite database is kept inside the container. Leave it under /data, or the database is lost when the container is updated." Type="Variable" Display="advanced-hide" Required="true" Mask="false">/data/sectorama.db</Config>
+</Container>

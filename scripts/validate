@@ -5,13 +5,26 @@
 #   scripts/validate [--offline]
 #
 # Checks ca_profile.xml (well formed, non-empty Profile, Icon reachable), the
-# LICENSE file, and every plugins/*.xml: well formed, the required fields
-# present, PluginURL an https URL that is reachable and byte-for-byte the
-# pluginURL attribute of the plg it points at, Icon and Screenshot reachable
-# and the Icon a PNG. --offline skips the network checks. Exit 1 on findings.
+# LICENSE file, every plugins/*.xml (a plugin wrapper) and every templates/*.xml
+# (a Docker app template).
+#
+# Wrapper: well formed, the required fields present, PluginURL an https URL
+# that is reachable and byte-for-byte the pluginURL attribute of the plg it
+# points at.
+# Template: well formed, the required fields present, TemplateURL the file's
+# own raw URL in this repository, every Config entry complete, the WebUI port
+# published by a Port entry, and the image tag present on Docker Hub (an image
+# on another registry is reported and not checked).
+# Both: Icon a reachable PNG, every Screenshot reachable.
+#
+# --offline skips the network checks. Exit 1 on findings.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+# Where Community Applications reads this repository from. A template's
+# TemplateURL must be its own path under this.
+feed_raw=https://raw.githubusercontent.com/tabilzad/unraid-plugins/main
 
 offline=0
 [ "${1:-}" = --offline ] && offline=1
@@ -21,6 +34,9 @@ err() {
   printf 'validate: %s\n' "$*" >&2
   fail=1
 }
+note() {
+  printf 'validate: note: %s\n' "$*" >&2
+}
 xp() { # FILE XPATH
   xmllint --noent --xpath "$2" "$1" 2>/dev/null || true
 }
@@ -29,6 +45,51 @@ fetch() { # URL OUT
 }
 is_png() { # FILE
   [ "$(head -c 8 -- "$1" | od -An -tx1 | tr -d ' \n')" = "89504e470d0a1a0a" ]
+}
+check_art() { # FILE ROOT: the Icon is a reachable PNG, every Screenshot is reachable
+  local f=$1 root=$2 icon n i shot
+  icon=$(xp "$f" "normalize-space(/$root/Icon)")
+  if fetch "$icon" "$tmp/icon"; then
+    is_png "$tmp/icon" || err "$f: Icon is not a PNG: $icon"
+  else
+    err "$f: Icon is not reachable: $icon"
+  fi
+  n=$(xp "$f" "count(/$root/Screenshot)")
+  for ((i = 1; i <= ${n:-0}; i++)); do
+    shot=$(xp "$f" "normalize-space(/$root/Screenshot[$i])")
+    fetch "$shot" "$tmp/shot" || err "$f: Screenshot is not reachable: $shot"
+  done
+}
+check_image() { # FILE IMAGE: the tag exists on Docker Hub
+  local f=$1 ref=$2 name tag
+  case "$ref" in
+    *@*)
+      note "$f: image $ref is pinned by digest, not checked"
+      return 0
+      ;;
+  esac
+  name=$ref
+  tag=latest
+  case "${ref##*/}" in
+    *:*)
+      tag=${ref##*:}
+      name=${ref%:*}
+      ;;
+  esac
+  case "$name" in
+    */*)
+      # A first component with a dot or a colon, or "localhost", is a registry host.
+      case "${name%%/*}" in
+        *.* | *:* | localhost)
+          note "$f: image $ref is not on Docker Hub, not checked"
+          return 0
+          ;;
+      esac
+      ;;
+    *) name=library/$name ;;
+  esac
+  fetch "https://hub.docker.com/v2/repositories/$name/tags/$tag" "$tmp/tag" ||
+    err "$f: Docker Hub has no image $name with the tag $tag"
 }
 
 for tool in xmllint curl; do
@@ -59,7 +120,8 @@ fi
 
 shopt -s nullglob
 wrappers=(plugins/*.xml)
-[ "${#wrappers[@]}" -gt 0 ] || err "no wrappers under plugins/"
+templates=(templates/*.xml)
+[ "$((${#wrappers[@]} + ${#templates[@]}))" -gt 0 ] || err "no wrappers under plugins/ and no templates under templates/"
 
 for w in "${wrappers[@]}"; do
   if ! xmllint --noout "$w" 2>/dev/null; then
@@ -72,7 +134,6 @@ for w in "${wrappers[@]}"; do
   done
   url=$(xp "$w" 'normalize-space(/Plugin/PluginURL)')
   icon=$(xp "$w" 'normalize-space(/Plugin/Icon)')
-  shot=$(xp "$w" 'normalize-space(/Plugin/Screenshot)')
   case "$url" in
     https://*) ;;
     *) err "$w: PluginURL must be an https URL: '$url'" ;;
@@ -95,17 +156,41 @@ for w in "${wrappers[@]}"; do
   else
     err "$w: PluginURL is not reachable: $url"
   fi
-  if fetch "$icon" "$tmp/icon"; then
-    is_png "$tmp/icon" || err "$w: Icon is not a PNG: $icon"
-  else
-    err "$w: Icon is not reachable: $icon"
+  check_art "$w" Plugin
+done
+
+for t in "${templates[@]}"; do
+  if ! xmllint --noout "$t" 2>/dev/null; then
+    err "$t is not well formed"
+    continue
   fi
-  if [ -n "$shot" ] && ! fetch "$shot" "$tmp/shot"; then
-    err "$w: Screenshot is not reachable: $shot"
+  [ "$(xp "$t" 'name(/*)')" = Container ] || err "$t: the root element must be <Container>"
+  for el in Name Repository Support Project Overview Category TemplateURL Icon License; do
+    [ -n "$(xp "$t" "normalize-space(/Container/$el)")" ] || err "$t: <$el> is missing or empty"
+  done
+  image=$(xp "$t" 'normalize-space(/Container/Repository)')
+  icon=$(xp "$t" 'normalize-space(/Container/Icon)')
+  template_url=$(xp "$t" 'normalize-space(/Container/TemplateURL)')
+  webui=$(xp "$t" 'normalize-space(/Container/WebUI)')
+  [ "$template_url" = "$feed_raw/$t" ] || err "$t: TemplateURL must be $feed_raw/$t, not '$template_url'"
+  case "$icon" in
+    https://*) ;;
+    *) err "$t: Icon must be an https URL: '$icon'" ;;
+  esac
+  incomplete=$(xp "$t" "count(/Container/Config[not(@Name) or @Name='' or not(@Target) or @Target='' or not(@Type='Port' or @Type='Path' or @Type='Variable' or @Type='Label' or @Type='Device')])")
+  [ "$incomplete" = 0 ] || err "$t: $incomplete Config element(s) lack a Name, a Target or a known Type"
+  if [[ $webui =~ \[PORT:([0-9]+)\] ]]; then
+    port=${BASH_REMATCH[1]}
+    [ "$(xp "$t" "count(/Container/Config[@Type='Port'][@Target='$port'])")" = 1 ] ||
+      err "$t: WebUI uses port $port, which no Port entry publishes"
   fi
+  [ "$offline" = 1 ] && continue
+
+  check_image "$t" "$image"
+  check_art "$t" Container
 done
 
 if [ "$fail" = 0 ]; then
-  printf 'validate: ok (%d wrapper(s)%s)\n' "${#wrappers[@]}" "$([ "$offline" = 1 ] && printf ', offline')"
+  printf 'validate: ok (%d wrapper(s), %d template(s)%s)\n' "${#wrappers[@]}" "${#templates[@]}" "$([ "$offline" = 1 ] && printf ', offline')"
 fi
 exit "$fail"
